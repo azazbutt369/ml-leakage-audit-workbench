@@ -1,0 +1,313 @@
+{
+  "audit_id": "AUDIT-PROTOCOL_A_GROUP_HOLDOUT-20261104213620",
+  "timestamp_utc": "2026-11-04T21:36:20.084537+00:00",
+  "dataset_name": "B2B_SaaS_Clean_Benchmark__protocol_a_group_holdout",
+  "protocol_id": "protocol_a_group_holdout",
+  "allow_returning_accounts": false,
+  "has_lineage_metadata": true,
+  "has_fit_provenance": true,
+  "has_resampling_provenance": true,
+  "overall_verdict": "PASS_VERIFIED_CLEAN",
+  "summary_counts": {
+    "CONFIRMED_LEAKAGE": 0,
+    "SUSPICIOUS_SIGNAL": 0,
+    "DATA_QUALITY_ISSUE": 0,
+    "DISTRIBUTION_SHIFT": 0,
+    "UNVERIFIABLE_MISSING_PROVENANCE": 0,
+    "CLEAN_PASS": 11
+  },
+  "findings": [
+    {
+      "rule_id": "LAK-001",
+      "rule_title": "Account / Group Identifier Overlap Across Partitions",
+      "category": "CLEAN_PASS",
+      "severity": "INFO",
+      "observed_evidence": {
+        "protocol_id": "protocol_a_group_holdout",
+        "allow_returning_accounts": false,
+        "train_val_overlapping_accounts": 0,
+        "train_test_overlapping_accounts": 0,
+        "val_test_overlapping_accounts": 0,
+        "note": "Zero group overlap confirmed under New-Account protocol."
+      },
+      "affected_scope": {
+        "partitions": [
+          "train",
+          "val",
+          "test"
+        ],
+        "columns": [
+          "account_id"
+        ]
+      },
+      "consequence_explanation": "Group partition alignment matches the declared evaluation protocol.",
+      "recommended_correction": "No action required.",
+      "verification_status": "VERIFIED_DIRECT_DATA"
+    },
+    {
+      "rule_id": "LAK-002",
+      "rule_title": "Exact Predictor-Vector Duplicates Across Partitions",
+      "category": "CLEAN_PASS",
+      "severity": "INFO",
+      "observed_evidence": {
+        "train_val_duplicate_hashes": 0,
+        "train_test_duplicate_hashes": 0,
+        "val_test_duplicate_hashes": 0
+      },
+      "affected_scope": {
+        "partitions": [
+          "train",
+          "val",
+          "test"
+        ],
+        "contaminated_evaluation_rows": 0
+      },
+      "consequence_explanation": "Zero exact predictor-vector duplicates cross partition boundaries.",
+      "recommended_correction": "No action required.",
+      "verification_status": "VERIFIED_DIRECT_DATA"
+    },
+    {
+      "rule_id": "LAK-003",
+      "rule_title": "Near-Duplicate Records Crossing Partitions (Bounded L2 Check)",
+      "category": "CLEAN_PASS",
+      "severity": "INFO",
+      "observed_evidence": {
+        "near_duplicate_test_rows_detected": 0,
+        "distance_threshold": 0.06,
+        "pairs_evaluated": 2250000,
+        "computational_cap_pairs": 2500000
+      },
+      "affected_scope": {
+        "partitions": [
+          "train",
+          "test"
+        ],
+        "flagged_test_rows": 0
+      },
+      "consequence_explanation": "No unexplained near-duplicate records detected within bounded L2 check.",
+      "recommended_correction": "No action required.",
+      "verification_status": "VERIFIED_DIRECT_DATA"
+    },
+    {
+      "rule_id": "LAK-004",
+      "rule_title": "Target or Target-Derived Features Included in Predictors",
+      "category": "CLEAN_PASS",
+      "severity": "INFO",
+      "observed_evidence": {
+        "target_in_predictors": false,
+        "suspicious_univariate_auc_columns": {}
+      },
+      "affected_scope": {
+        "columns": [
+          "mrr_gbp",
+          "seats_purchased",
+          "tenure_months",
+          "discount_pct",
+          "active_seats_ratio_30d",
+          "usage_events_30d",
+          "usage_trend_90d_pct",
+          "api_error_rate_30d",
+          "feature_adoption_score",
+          "days_since_last_admin_login",
+          "support_tickets_30d",
+          "urgent_tickets_90d",
+          "mean_first_response_hours",
+          "csat_trailing_90d",
+          "late_payments_12m",
+          "dunning_events_6m",
+          "plan_tier",
+          "contract_type",
+          "industry_sector",
+          "company_size_band",
+          "payment_method"
+        ]
+      },
+      "consequence_explanation": "No target or target-derived columns detected in predictors.",
+      "recommended_correction": "No action required.",
+      "verification_status": "VERIFIED_PROVENANCE"
+    },
+    {
+      "rule_id": "LAK-005",
+      "rule_title": "Feature Availability at Prediction Timestamp (Point-in-Time Audit)",
+      "category": "CLEAN_PASS",
+      "severity": "INFO",
+      "observed_evidence": {
+        "checked_predictor_count": 21,
+        "all_lags_non_positive": true,
+        "unregistered_columns": []
+      },
+      "affected_scope": {
+        "columns": [
+          "mrr_gbp",
+          "seats_purchased",
+          "tenure_months",
+          "discount_pct",
+          "active_seats_ratio_30d",
+          "usage_events_30d",
+          "usage_trend_90d_pct",
+          "api_error_rate_30d",
+          "feature_adoption_score",
+          "days_since_last_admin_login",
+          "support_tickets_30d",
+          "urgent_tickets_90d",
+          "mean_first_response_hours",
+          "csat_trailing_90d",
+          "late_payments_12m",
+          "dunning_events_6m",
+          "plan_tier",
+          "contract_type",
+          "industry_sector",
+          "company_size_band",
+          "payment_method"
+        ]
+      },
+      "consequence_explanation": "All registered predictors have availability_lag_hours <= 0.0.",
+      "recommended_correction": "No action required.",
+      "verification_status": "VERIFIED_PROVENANCE"
+    },
+    {
+      "rule_id": "LAK-006",
+      "rule_title": "Temporal Ordering and 90-Day Outcome-Window Purge Verification",
+      "category": "CLEAN_PASS",
+      "severity": "INFO",
+      "observed_evidence": {
+        "protocol_id": "protocol_a_group_holdout",
+        "note": "Protocol A evaluates cross-account generalisation across disjoint account groups; temporal purging is governed under Protocol B."
+      },
+      "affected_scope": {
+        "partitions": [
+          "train",
+          "val",
+          "test"
+        ]
+      },
+      "consequence_explanation": "Disjoint account partitioning isolates trajectories across splits.",
+      "recommended_correction": "Use Protocol B when evaluating forward-in-time production deployment.",
+      "verification_status": "VERIFIED_DIRECT_DATA"
+    },
+    {
+      "rule_id": "LAK-007",
+      "rule_title": "Preprocessing Fit Boundary Provenance Check",
+      "category": "CLEAN_PASS",
+      "severity": "INFO",
+      "observed_evidence": {
+        "stage_name": "hist_gradient_boosting_full_train_fit",
+        "total_rows_used_in_preprocessor_fit": 9933,
+        "val_rows_present_in_preprocessor_fit": 0,
+        "test_rows_present_in_preprocessor_fit": 0,
+        "cv_folds_audited": 4,
+        "cv_folds_contaminating_val_or_test": 0
+      },
+      "affected_scope": {
+        "partitions": [
+          "train"
+        ],
+        "contaminated_fit_rows": 0
+      },
+      "consequence_explanation": "FitProvenanceRecord confirms 100% of fitted row hashes belong exclusively to the training partition (and training sub-folds during cross-validation).",
+      "recommended_correction": "No action required.",
+      "verification_status": "VERIFIED_PROVENANCE"
+    },
+    {
+      "rule_id": "LAK-008",
+      "rule_title": "Resampling / Class Balancing Boundary Check",
+      "category": "CLEAN_PASS",
+      "severity": "INFO",
+      "observed_evidence": {
+        "resampling_applied": false,
+        "applied_strictly_inside_train_boundary": true,
+        "cross_partition_minority_duplicate_hashes": 0
+      },
+      "affected_scope": {
+        "partitions": [
+          "train"
+        ]
+      },
+      "consequence_explanation": "Resampling boundary is strictly isolated to training data.",
+      "recommended_correction": "No action required.",
+      "verification_status": "VERIFIED_PROVENANCE"
+    },
+    {
+      "rule_id": "LAK-009",
+      "rule_title": "Identifiers, Timestamps or Lineage Metadata in Predictors",
+      "category": "CLEAN_PASS",
+      "severity": "INFO",
+      "observed_evidence": {
+        "checked_feature_columns": [
+          "mrr_gbp",
+          "seats_purchased",
+          "tenure_months",
+          "discount_pct",
+          "active_seats_ratio_30d",
+          "usage_events_30d",
+          "usage_trend_90d_pct",
+          "api_error_rate_30d",
+          "feature_adoption_score",
+          "days_since_last_admin_login",
+          "support_tickets_30d",
+          "urgent_tickets_90d",
+          "mean_first_response_hours",
+          "csat_trailing_90d",
+          "late_payments_12m",
+          "dunning_events_6m",
+          "plan_tier",
+          "contract_type",
+          "industry_sector",
+          "company_size_band",
+          "payment_method"
+        ],
+        "invalid_predictor_columns": []
+      },
+      "affected_scope": {
+        "columns": []
+      },
+      "consequence_explanation": "All identifiers, timestamps and lineage fields are excluded from predictors.",
+      "recommended_correction": "No action required.",
+      "verification_status": "VERIFIED_DIRECT_DATA"
+    },
+    {
+      "rule_id": "LAK-010",
+      "rule_title": "Label Consistency, Right-Censoring & Data-Quality Check",
+      "category": "CLEAN_PASS",
+      "severity": "INFO",
+      "observed_evidence": {
+        "right_censored_rows_in_active_splits": 0,
+        "null_target_rows_in_active_splits": 0,
+        "conflicting_account_date_label_keys": 0
+      },
+      "affected_scope": {
+        "partitions": [
+          "train",
+          "val",
+          "test"
+        ],
+        "affected_rows": 0
+      },
+      "consequence_explanation": "Zero right-censored outcomes or conflicting (account_id, observation_date) labels in active splits.",
+      "recommended_correction": "No action required.",
+      "verification_status": "VERIFIED_DIRECT_DATA"
+    },
+    {
+      "rule_id": "LAK-011",
+      "rule_title": "Covariate and Target Prevalence Shift Across Partitions",
+      "category": "CLEAN_PASS",
+      "severity": "INFO",
+      "observed_evidence": {
+        "drifted_features_psi_or_tvd": {},
+        "train_positive_prevalence": 0.1065,
+        "test_positive_prevalence": 0.1067
+      },
+      "affected_scope": {
+        "partitions": [
+          "train",
+          "test"
+        ],
+        "columns": []
+      },
+      "consequence_explanation": "Covariate distributions and target prevalence remain stable across splits.",
+      "recommended_correction": "No action required.",
+      "verification_status": "VERIFIED_DIRECT_DATA"
+    }
+  ],
+  "scope_disclaimer": "Audit Scope & Epistemic Limitation: This audit evaluates 11 structural, temporal, duplication and provenance rules against available data and execution metadata. No automated audit can detect every conceivable form of domain-specific or upstream pipeline leakage. A suspicious column name, strong correlation or high model score is never treated as proof of leakage without provenance evidence."
+}

@@ -1,0 +1,81 @@
+{
+  "protocol_id": "protocol_b_temporal_purged",
+  "protocol_name": "Protocol B: Future-Period Prediction (Chronological with 90-Day Outcome-Window Purging)",
+  "is_primary_benchmark": true,
+  "deployment_question": "Given historical monthly snapshots whose 90-day outcomes have fully materialised by the training cutoff timestamp, how accurately can we score active accounts (including returning customers and newly onboarded accounts) in future calendar months?",
+  "allow_returning_accounts": true,
+  "temporal_boundaries": {
+    "val_start_date": "2024-11-01",
+    "val_end_date": "2024-12-01",
+    "test_start_date": "2025-03-01",
+    "test_end_date": "2025-04-01",
+    "prediction_horizon_days": 90
+  },
+  "purging_summary": {
+    "purged_train_to_val_rows": 1771,
+    "purged_val_to_test_rows": 1436,
+    "total_purged_rows": 3207,
+    "purged_observation_dates": [
+      "2024-09-01",
+      "2024-10-01",
+      "2025-01-01",
+      "2025-02-01"
+    ],
+    "censored_late_rows_excluded": 1061
+  },
+  "returning_account_diagnostics": {
+    "val_returning_accounts_from_train": 694,
+    "val_new_accounts": 171,
+    "test_returning_accounts_from_train": 511,
+    "test_new_accounts": 125
+  },
+  "partitions": {
+    "train": {
+      "row_count": 8081,
+      "unique_accounts": 1471,
+      "positive_count": 879,
+      "negative_count": 7202,
+      "positive_prevalence": 0.1088,
+      "min_observation_date": "2024-01-01",
+      "max_observation_date": "2024-08-01",
+      "max_outcome_window_end": "2024-10-30",
+      "sha256": "06daa53410dec9a0e1492277ddd5bf39b798635569d47bd3728230c707a9617a"
+    },
+    "val": {
+      "row_count": 1675,
+      "unique_accounts": 865,
+      "positive_count": 170,
+      "negative_count": 1505,
+      "positive_prevalence": 0.1015,
+      "min_observation_date": "2024-11-01",
+      "max_observation_date": "2024-12-01",
+      "max_outcome_window_end": "2025-03-01",
+      "sha256": "4bc3d6d7e613125069452d1c3ca21bc6f6d2689f020113ff5fe31fe870413d41"
+    },
+    "test": {
+      "row_count": 1235,
+      "unique_accounts": 636,
+      "positive_count": 123,
+      "negative_count": 1112,
+      "positive_prevalence": 0.0996,
+      "min_observation_date": "2025-03-01",
+      "max_observation_date": "2025-04-01",
+      "max_outcome_window_end": "2025-06-30",
+      "sha256": "8b46e3148b8708a49996deff4eb96401981e288be9e6a4d6d64f0fcf969cbc23"
+    },
+    "purged": {
+      "row_count": 3207,
+      "unique_accounts": 1007,
+      "positive_count": 341,
+      "negative_count": 2866,
+      "positive_prevalence": 0.1063,
+      "min_observation_date": "2024-09-01",
+      "max_observation_date": "2025-02-01",
+      "max_outcome_window_end": "2025-05-02",
+      "sha256": "6b92fe3a9776cc90a8467c4aff6620aac15263e0df93280ab4203097e317f5aa"
+    },
+    "censored_excluded": {
+      "row_count": 1061
+    }
+  }
+}

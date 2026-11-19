@@ -1,0 +1,77 @@
+{
+  "FIX-01": {
+    "fixture_id": "FIX-01",
+    "name": "Repeated-Account Contamination via Row-Level Split",
+    "is_contaminated": true,
+    "injected_fault_description": "Partitioned longitudinal snapshots using a random row-level train_test_split instead of grouping by account_id under the New-Account Generalisation protocol.",
+    "expected_confirmed_leakage_rules": [
+      "LAK-001"
+    ],
+    "requires_external_provenance": false
+  },
+  "FIX-02": {
+    "fixture_id": "FIX-02",
+    "name": "Future Target-Derived Feature (Post-Observation Retention Credits)",
+    "is_contaminated": true,
+    "injected_fault_description": "Added predictor 'retention_credits_issued_next_60d' which is finalised +60 days after observation_date and is noisy-derived from the future 90d churn trajectory.",
+    "expected_confirmed_leakage_rules": [
+      "LAK-004",
+      "LAK-005"
+    ],
+    "requires_external_provenance": true
+  },
+  "FIX-03": {
+    "fixture_id": "FIX-03",
+    "name": "Exact and Near-Duplicate Records Crossing Partitions",
+    "is_contaminated": true,
+    "injected_fault_description": "Copied 75 exact training snapshots and 45 slightly jittered training snapshots (0.5% Gaussian noise on numericals) into the test partition.",
+    "expected_confirmed_leakage_rules": [
+      "LAK-002"
+    ],
+    "expected_suspicious_rules": [
+      "LAK-003"
+    ],
+    "requires_external_provenance": false
+  },
+  "FIX-04": {
+    "fixture_id": "FIX-04",
+    "name": "Preprocessing Fitted Before Partitioning + Unpurged Outcome Bleed",
+    "is_contaminated": true,
+    "injected_fault_description": "Fitted SimpleImputer and StandardScaler on the combined (Train + Val + Test) dataset before splitting (recorded in FitProvenanceRecord), and omitted the 90-day outcome-window purge buffer between Training and Validation/Test.",
+    "expected_confirmed_leakage_rules": [
+      "LAK-006",
+      "LAK-007"
+    ],
+    "requires_external_provenance": true
+  },
+  "FIX-05": {
+    "fixture_id": "FIX-05",
+    "name": "Minority-Class Oversampling Performed Before Partitioning",
+    "is_contaminated": true,
+    "injected_fault_description": "Oversampled minority churn snapshots (churned_within_90d == 1) across the entire dataset to 40% prevalence prior to splitting into Train, Val and Test partitions.",
+    "expected_confirmed_leakage_rules": [
+      "LAK-002",
+      "LAK-008"
+    ],
+    "requires_external_provenance": false
+  },
+  "FIX-06": {
+    "fixture_id": "FIX-06",
+    "name": "Clean Negative Control (Properly Partitioned & Train-Only Fitted)",
+    "is_contaminated": false,
+    "injected_fault_description": "None (Clean negative control with strong legitimate historical predictors).",
+    "expected_confirmed_leakage_rules": [],
+    "requires_external_provenance": false
+  },
+  "FIX-07": {
+    "fixture_id": "FIX-07",
+    "name": "Legitimate Covariate & Prevalence Shift Control (Not Leakage)",
+    "is_contaminated": false,
+    "injected_fault_description": "None (Clean temporal split where Test period experiences a simulated macro-economic shift toward smaller Starter-tier monthly accounts; must be classified as DISTRIBUTION_SHIFT under LAK-011 and NOT flagged as leakage).",
+    "expected_confirmed_leakage_rules": [],
+    "expected_shift_rules": [
+      "LAK-011"
+    ],
+    "requires_external_provenance": false
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "dataset_id": "SYNTH-B2B-SAAS-CHURN-V1",
+  "contract_id": "CONTRACT-B2B-SAAS-CHURN-90D-V1",
+  "simulation_seed": 20261105,
+  "synthetic_disclosure": "Synthetic Benchmark Disclosure: This dataset is deterministically generated from a documented longitudinal B2B SaaS simulation (SEED=20261105). Because the synthetic generator and evaluation pipelines share authorship, reported metrics demonstrate pipeline mechanics, temporal/group boundary enforcement and leakage-audit sensitivity. They do not constitute an independent real-world benchmark or commercial client outcome.",
+  "total_snapshots_including_censored": 15259,
+  "uncensored_modelling_snapshots": 14198,
+  "right_censored_snapshots_excluded": 1061,
+  "unique_accounts_total": 1650,
+  "unique_accounts_uncensored": 1650,
+  "observation_date_min": "2024-01-01",
+  "observation_date_max_full": "2025-06-01",
+  "observation_date_max_uncensored": "2025-04-01",
+  "dataset_cutoff_date": "2025-06-30",
+  "prediction_horizon_days": 90,
+  "target_positive_count": 1513,
+  "target_negative_count": 12685,
+  "target_positive_prevalence": 0.1066,
+  "full_dataset_sha256": "821a23a7b35e7d0d595f0bb549bd4f8bff10182988a3078f616df524c481134f",
+  "modelling_dataset_sha256": "5a896989783454d8c2b4e04500b8d6fd537ab3a1087ed89ffc6c25f44e024cf0",
+  "missing_rates_uncensored": {
+    "usage_trend_90d_pct": 0.0958,
+    "mean_first_response_hours": 0.0599,
+    "csat_trailing_90d": 0.321,
+    "industry_sector": 0.033,
+    "company_size_band": 0.0141
+  }
+}

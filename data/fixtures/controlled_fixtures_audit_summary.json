@@ -1,0 +1,1092 @@
+{
+  "total_fixtures_evaluated": 7,
+  "contaminated_fixture_count": 5,
+  "clean_control_fixture_count": 2,
+  "contaminated_detected_with_provenance": 5,
+  "contaminated_confirmed_from_raw_csv_alone": 4,
+  "contaminated_requiring_provenance_to_confirm": 1,
+  "false_positive_flags_on_clean_controls": 0,
+  "provenance_dependency_analysis": "FIX-01 (Account Overlap), FIX-03 (Cross-Split Duplicates) and FIX-05 (Pre-Split Minority Oversampling via duplicate hashes) are detectable directly from partitioned CSV rows. In contrast, FIX-02 (Future Feature Availability) and FIX-04 (Pre-Split Imputation/Scaling) require FeatureSpec lag metadata and FitProvenanceRecord row-hash logs to confirm definitively; in Raw-CSV mode they are appropriately reported as SUSPICIOUS_SIGNAL or UNVERIFIABLE_MISSING_PROVENANCE.",
+  "fixtures": [
+    {
+      "fixture_id": "FIX-01",
+      "name": "Repeated-Account Contamination via Row-Level Split",
+      "is_contaminated": true,
+      "injected_fault_description": "Partitioned longitudinal snapshots using a random row-level train_test_split instead of grouping by account_id under the New-Account Generalisation protocol.",
+      "expected_confirmed_leakage_rules": [
+        "LAK-001"
+      ],
+      "requires_external_provenance": false,
+      "detected_in_full_provenance_mode": true,
+      "full_provenance_mode": {
+        "overall_verdict": "FAIL_CONFIRMED_LEAKAGE",
+        "confirmed_leakage_rules": [
+          "LAK-001"
+        ],
+        "suspicious_signal_rules": [],
+        "distribution_shift_rules": [],
+        "unverifiable_rules": [],
+        "findings": [
+          {
+            "rule_id": "LAK-001",
+            "rule_title": "Account / Group Identifier Overlap Across Partitions",
+            "category": "CONFIRMED_LEAKAGE",
+            "severity": "CRITICAL",
+            "observed_evidence": {
+              "protocol_id": "protocol_a_group_holdout",
+              "allow_returning_accounts": false,
+              "train_val_overlapping_accounts": 279,
+              "train_test_overlapping_accounts": 296,
+              "val_test_overlapping_accounts": 216,
+              "sample_overlapping_account_ids": [
+                "ACC-00002",
+                "ACC-00007",
+                "ACC-00008",
+                "ACC-00012",
+                "ACC-00015",
+                "ACC-00025",
+                "ACC-00029",
+                "ACC-00030",
+                "ACC-00036",
+                "ACC-00045"
+              ]
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "val",
+                "test"
+              ],
+              "columns": [
+                "account_id"
+              ],
+              "affected_account_count": 365
+            },
+            "consequence_explanation": "Under the New-Account Generalisation protocol (allow_returning_accounts=False), repeated snapshots of the same customer appear in both training and evaluation. Models can exploit persistent account-specific baselines, inflating new-account metrics.",
+            "recommended_correction": "Partition using StratifiedGroupKFold or GroupShuffleSplit keyed on 'account_id' so all snapshots of an account reside in a single partition.",
+            "verification_status": "VERIFIED_DIRECT_DATA"
+          }
+        ]
+      },
+      "raw_csv_mode": {
+        "overall_verdict": "FAIL_CONFIRMED_LEAKAGE",
+        "confirmed_leakage_rules": [
+          "LAK-001"
+        ],
+        "suspicious_signal_rules": [],
+        "unverifiable_rules": [
+          "LAK-005",
+          "LAK-007",
+          "LAK-008"
+        ]
+      },
+      "contaminated_vs_corrected_metrics": {
+        "fixture_measured": {
+          "logistic_regression": {
+            "test_pr_auc": 0.3099,
+            "test_roc_auc": 0.7569,
+            "test_brier": 0.0888
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.348,
+            "test_roc_auc": 0.7679,
+            "test_brier": 0.0845
+          }
+        },
+        "clean_protocol_reference": {
+          "logistic_regression": {
+            "test_pr_auc": 0.2786,
+            "test_roc_auc": 0.7714,
+            "test_brier": 0.0886
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.2556,
+            "test_roc_auc": 0.7372,
+            "test_brier": 0.0907
+          }
+        },
+        "interpretation": "Random row-level splitting allows persistent account random effects to appear in both Train and Test, modestly inflating apparent New-Account Generalisation scores compared with strict account-group isolation."
+      }
+    },
+    {
+      "fixture_id": "FIX-02",
+      "name": "Future Target-Derived Feature (Post-Observation Retention Credits)",
+      "is_contaminated": true,
+      "injected_fault_description": "Added predictor 'retention_credits_issued_next_60d' which is finalised +60 days after observation_date and is noisy-derived from the future 90d churn trajectory.",
+      "expected_confirmed_leakage_rules": [
+        "LAK-004",
+        "LAK-005"
+      ],
+      "requires_external_provenance": true,
+      "detected_in_full_provenance_mode": true,
+      "full_provenance_mode": {
+        "overall_verdict": "FAIL_CONFIRMED_LEAKAGE",
+        "confirmed_leakage_rules": [
+          "LAK-004",
+          "LAK-005"
+        ],
+        "suspicious_signal_rules": [],
+        "distribution_shift_rules": [
+          "LAK-011"
+        ],
+        "unverifiable_rules": [],
+        "findings": [
+          {
+            "rule_id": "LAK-004",
+            "rule_title": "Target or Target-Derived Features Included in Predictors",
+            "category": "CONFIRMED_LEAKAGE",
+            "severity": "CRITICAL",
+            "observed_evidence": {
+              "confirmed_target_or_derived_columns": [
+                "retention_credits_issued_next_60d"
+              ],
+              "univariate_roc_auc_on_train": {
+                "retention_credits_issued_next_60d": 1.0
+              },
+              "provenance_source": "Lineage registry confirms post-observation target derivation."
+            },
+            "affected_scope": {
+              "columns": [
+                "retention_credits_issued_next_60d"
+              ],
+              "partitions": [
+                "train",
+                "val",
+                "test"
+              ]
+            },
+            "consequence_explanation": "A feature directly encoding or derived from the future churn outcome is present in the predictor matrix, invalidating offline evaluation and causing catastrophic failure at deployment when future outcomes are unknown.",
+            "recommended_correction": "Remove ['retention_credits_issued_next_60d'] from feature_columns immediately and enforce contract predictor allow-listing.",
+            "verification_status": "VERIFIED_PROVENANCE"
+          },
+          {
+            "rule_id": "LAK-005",
+            "rule_title": "Feature Availability at Prediction Timestamp (Point-in-Time Audit)",
+            "category": "CONFIRMED_LEAKAGE",
+            "severity": "CRITICAL",
+            "observed_evidence": {
+              "features_with_positive_availability_lag_hours": {
+                "retention_credits_issued_next_60d": 1440.0
+              },
+              "prediction_timestamp_col": "observation_date"
+            },
+            "affected_scope": {
+              "columns": [
+                "retention_credits_issued_next_60d"
+              ]
+            },
+            "consequence_explanation": "Predictors have availability_lag_hours > 0 relative to observation_date, meaning their values are finalised after prediction time (look-ahead leakage).",
+            "recommended_correction": "Exclude ['retention_credits_issued_next_60d'] or lag their aggregation window so all inputs close on or before observation_date.",
+            "verification_status": "VERIFIED_PROVENANCE"
+          },
+          {
+            "rule_id": "LAK-011",
+            "rule_title": "Covariate and Target Prevalence Shift Across Partitions",
+            "category": "DISTRIBUTION_SHIFT",
+            "severity": "MEDIUM",
+            "observed_evidence": {
+              "drifted_features_psi_or_tvd": {
+                "tenure_months": 0.9382,
+                "usage_trend_90d_pct": 0.2147
+              },
+              "train_positive_prevalence": 0.107,
+              "test_positive_prevalence": 0.0873,
+              "prevalence_shift_abs": 0.0197,
+              "classification_note": "Classified as DISTRIBUTION_SHIFT, NOT data leakage. Shift across temporal waves or cohorts requires calibration monitoring and slice evaluation."
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "test"
+              ],
+              "columns": [
+                "tenure_months",
+                "usage_trend_90d_pct"
+              ]
+            },
+            "consequence_explanation": "Covariate or base-rate drift between training and test periods can degrade probability calibration and shift precision/recall trade-offs at a fixed threshold.",
+            "recommended_correction": "Inspect cohort-level calibration and evaluate whether recalibration or threshold adjustment on recent development windows is warranted.",
+            "verification_status": "VERIFIED_DIRECT_DATA"
+          }
+        ]
+      },
+      "raw_csv_mode": {
+        "overall_verdict": "WARN_INVESTIGATION_OR_QUALITY_REQUIRED",
+        "confirmed_leakage_rules": [],
+        "suspicious_signal_rules": [
+          "LAK-004",
+          "LAK-005"
+        ],
+        "unverifiable_rules": [
+          "LAK-007",
+          "LAK-008"
+        ]
+      },
+      "contaminated_vs_corrected_metrics": {
+        "fixture_measured": {
+          "logistic_regression": {
+            "test_pr_auc": 1.0,
+            "test_roc_auc": 1.0,
+            "test_brier": 0.0006
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 1.0,
+            "test_roc_auc": 1.0,
+            "test_brier": 0.0001
+          }
+        },
+        "clean_protocol_reference": {
+          "logistic_regression": {
+            "test_pr_auc": 0.4404,
+            "test_roc_auc": 0.8525,
+            "test_brier": 0.0639
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.3668,
+            "test_roc_auc": 0.8153,
+            "test_brier": 0.068
+          }
+        },
+        "interpretation": "Including a post-observation retention credit feature artificially inflates PR-AUC and ROC-AUC above 0.95. In Full-Provenance mode, LAK-004 and LAK-005 confirm leakage; in Raw-CSV mode without feature lag metadata, the detector flags it as a SUSPICIOUS_SIGNAL requiring provenance verification."
+      }
+    },
+    {
+      "fixture_id": "FIX-03",
+      "name": "Exact and Near-Duplicate Records Crossing Partitions",
+      "is_contaminated": true,
+      "injected_fault_description": "Copied 75 exact training snapshots and 45 slightly jittered training snapshots (0.5% Gaussian noise on numericals) into the test partition.",
+      "expected_confirmed_leakage_rules": [
+        "LAK-002"
+      ],
+      "requires_external_provenance": false,
+      "detected_in_full_provenance_mode": true,
+      "full_provenance_mode": {
+        "overall_verdict": "FAIL_CONFIRMED_LEAKAGE",
+        "confirmed_leakage_rules": [
+          "LAK-002"
+        ],
+        "suspicious_signal_rules": [
+          "LAK-003"
+        ],
+        "distribution_shift_rules": [
+          "LAK-011"
+        ],
+        "unverifiable_rules": [],
+        "findings": [
+          {
+            "rule_id": "LAK-002",
+            "rule_title": "Exact Predictor-Vector Duplicates Across Partitions",
+            "category": "CONFIRMED_LEAKAGE",
+            "severity": "CRITICAL",
+            "observed_evidence": {
+              "unique_duplicate_predictor_hashes": 75,
+              "train_val_duplicate_hashes": 0,
+              "train_test_duplicate_hashes": 75,
+              "val_test_duplicate_hashes": 0,
+              "contaminated_val_row_count": 0,
+              "contaminated_test_row_count": 75,
+              "sample_duplicate_hashes": [
+                "0262ccb55170ffd03481ef9b",
+                "06f2dcd8efae9d2ab7e8b576",
+                "0a68cd7a80956717d6d6265a",
+                "0aa105a3b36e24509565d4af",
+                "0e0f910c114826cedc80f53e",
+                "154dc067cc951a08e3ab26d4",
+                "16ab221affbd6d7b1d585501",
+                "1b5605a133f8584f62fe75da"
+              ]
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "val",
+                "test"
+              ],
+              "contaminated_evaluation_rows": 75
+            },
+            "consequence_explanation": "Identical predictor vectors appear in both training and evaluation splits. High-capacity models can memorise exact training records, artificially distorting validation and test metrics.",
+            "recommended_correction": "Deduplicate snapshots prior to partitioning and ensure resampling or data augmentation never occurs before Train/Val/Test splitting.",
+            "verification_status": "VERIFIED_DIRECT_DATA"
+          },
+          {
+            "rule_id": "LAK-003",
+            "rule_title": "Near-Duplicate Records Crossing Partitions (Bounded L2 Check)",
+            "category": "SUSPICIOUS_SIGNAL",
+            "severity": "HIGH",
+            "observed_evidence": {
+              "near_duplicate_test_rows_detected": 45,
+              "distance_metric": "Root-Mean-Square Standardised Euclidean Distance",
+              "distance_threshold": 0.06,
+              "min_nonzero_distance_observed": 0.001041,
+              "pairs_evaluated": 1036500,
+              "computational_cap_pairs": 2500000,
+              "rows_scanned_per_split_limit": 1500
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "test"
+              ],
+              "columns": [
+                "mrr_gbp",
+                "seats_purchased",
+                "tenure_months",
+                "discount_pct",
+                "active_seats_ratio_30d",
+                "usage_events_30d",
+                "usage_trend_90d_pct",
+                "api_error_rate_30d",
+                "feature_adoption_score",
+                "days_since_last_admin_login",
+                "support_tickets_30d",
+                "urgent_tickets_90d",
+                "mean_first_response_hours",
+                "csat_trailing_90d",
+                "late_payments_12m",
+                "dunning_events_6m"
+              ],
+              "flagged_test_rows": 45
+            },
+            "consequence_explanation": "Test records exist within an extremely small standardised Euclidean radius of training records. This may indicate jittered duplicate injection, synthetic oversampling before splitting or near-identical snapshot cloning.",
+            "recommended_correction": "Inspect flagged near-duplicate pairs to determine whether they represent legitimate stable accounts across time or contaminated jittered copies.",
+            "verification_status": "HEURISTIC_REQUIRES_INVESTIGATION"
+          },
+          {
+            "rule_id": "LAK-011",
+            "rule_title": "Covariate and Target Prevalence Shift Across Partitions",
+            "category": "DISTRIBUTION_SHIFT",
+            "severity": "MEDIUM",
+            "observed_evidence": {
+              "drifted_features_psi_or_tvd": {
+                "mrr_gbp": 0.3294
+              },
+              "train_positive_prevalence": 0.1064,
+              "test_positive_prevalence": 0.1013,
+              "prevalence_shift_abs": 0.005,
+              "classification_note": "Classified as DISTRIBUTION_SHIFT, NOT data leakage. Shift across temporal waves or cohorts requires calibration monitoring and slice evaluation."
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "test"
+              ],
+              "columns": [
+                "mrr_gbp"
+              ]
+            },
+            "consequence_explanation": "Covariate or base-rate drift between training and test periods can degrade probability calibration and shift precision/recall trade-offs at a fixed threshold.",
+            "recommended_correction": "Inspect cohort-level calibration and evaluate whether recalibration or threshold adjustment on recent development windows is warranted.",
+            "verification_status": "VERIFIED_DIRECT_DATA"
+          }
+        ]
+      },
+      "raw_csv_mode": {
+        "overall_verdict": "FAIL_CONFIRMED_LEAKAGE",
+        "confirmed_leakage_rules": [
+          "LAK-002"
+        ],
+        "suspicious_signal_rules": [
+          "LAK-003"
+        ],
+        "unverifiable_rules": [
+          "LAK-005",
+          "LAK-007",
+          "LAK-008"
+        ]
+      },
+      "contaminated_vs_corrected_metrics": {
+        "fixture_measured": {
+          "logistic_regression": {
+            "test_pr_auc": 0.2856,
+            "test_roc_auc": 0.7692,
+            "test_brier": 0.0843
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.4043,
+            "test_roc_auc": 0.7974,
+            "test_brier": 0.0769
+          }
+        },
+        "clean_protocol_reference": {
+          "logistic_regression": {
+            "test_pr_auc": 0.2786,
+            "test_roc_auc": 0.7714,
+            "test_brier": 0.0886
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.2556,
+            "test_roc_auc": 0.7372,
+            "test_brier": 0.0907
+          }
+        },
+        "interpretation": "LAK-002 deterministically catches all 75 exact duplicates via SHA-256 predictor hashing, and LAK-003 flags the 45 jittered near-duplicates via bounded standardised L2 distance."
+      }
+    },
+    {
+      "fixture_id": "FIX-04",
+      "name": "Preprocessing Fitted Before Partitioning + Unpurged Outcome Bleed",
+      "is_contaminated": true,
+      "injected_fault_description": "Fitted SimpleImputer and StandardScaler on the combined (Train + Val + Test) dataset before splitting (recorded in FitProvenanceRecord), and omitted the 90-day outcome-window purge buffer between Training and Validation/Test.",
+      "expected_confirmed_leakage_rules": [
+        "LAK-006",
+        "LAK-007"
+      ],
+      "requires_external_provenance": true,
+      "detected_in_full_provenance_mode": true,
+      "full_provenance_mode": {
+        "overall_verdict": "FAIL_CONFIRMED_LEAKAGE",
+        "confirmed_leakage_rules": [
+          "LAK-006",
+          "LAK-007"
+        ],
+        "suspicious_signal_rules": [],
+        "distribution_shift_rules": [
+          "LAK-011"
+        ],
+        "unverifiable_rules": [],
+        "findings": [
+          {
+            "rule_id": "LAK-006",
+            "rule_title": "Temporal Ordering and 90-Day Outcome-Window Purge Verification",
+            "category": "CONFIRMED_LEAKAGE",
+            "severity": "CRITICAL",
+            "observed_evidence": {
+              "train_max_observation_date": "2024-10-01",
+              "train_max_outcome_window_end": "2024-12-30",
+              "val_min_observation_date": "2024-11-01",
+              "val_max_outcome_window_end": "2025-05-02",
+              "test_min_observation_date": "2025-03-01",
+              "train_rows_bleeding_into_val": 479,
+              "val_rows_bleeding_into_test": 396,
+              "train_rows_bleeding_into_test": 0
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "val",
+                "test"
+              ],
+              "bleeding_row_count": 875
+            },
+            "consequence_explanation": "Training or validation observations have 90-day outcome windows extending past the start of the subsequent evaluation period. In production, those labels would not yet be known at the cutoff timestamp (temporal label bleed).",
+            "recommended_correction": "Purge all training rows where outcome_window_end > val_start_date and all validation rows where outcome_window_end > test_start_date.",
+            "verification_status": "VERIFIED_DIRECT_DATA"
+          },
+          {
+            "rule_id": "LAK-007",
+            "rule_title": "Preprocessing Fit Boundary Provenance Check",
+            "category": "CONFIRMED_LEAKAGE",
+            "severity": "CRITICAL",
+            "observed_evidence": {
+              "stage_name": "fix_04_pre_split_global_fit",
+              "total_rows_used_in_preprocessor_fit": 3801,
+              "val_rows_present_in_preprocessor_fit": 860,
+              "test_rows_present_in_preprocessor_fit": 332,
+              "cv_folds_contaminating_val_or_test": 0,
+              "sample_leaked_test_row_hashes": [
+                "00a07575eb13f581b5047e5c",
+                "01548dcd4c525ee7422d8acc",
+                "01d9ccc10788abaf124d2cf4",
+                "02054f93b7609dc1b04c5a1f",
+                "027536f7e56e9564d803a52a",
+                "027a59101b30a044c709117e",
+                "028b40410521b6343f30a016",
+                "02c13ab3882591c8f041cd4d"
+              ],
+              "learned_summary_stats": {
+                "numerical_medians": {
+                  "mrr_gbp": 2142.0,
+                  "seats_purchased": 56.0,
+                  "tenure_months": 17.0,
+                  "discount_pct": 10.0,
+                  "active_seats_ratio_30d": 0.6625,
+                  "usage_events_30d": 2305.0,
+                  "usage_trend_90d_pct": -8.555,
+                  "api_error_rate_30d": 0.0309,
+                  "feature_adoption_score": 59.33,
+                  "days_since_last_admin_login": 4.0,
+                  "support_tickets_30d": 3.0,
+                  "urgent_tickets_90d": 0.0,
+                  "mean_first_response_hours": 4.35,
+                  "csat_trailing_90d": 4.09,
+                  "late_payments_12m": 0.0,
+                  "dunning_events_6m": 0.0
+                },
+                "numerical_means": {
+                  "mrr_gbp": 6541.498829,
+                  "seats_purchased": 108.386477,
+                  "tenure_months": 18.626151,
+                  "discount_pct": 10.65246,
+                  "active_seats_ratio_30d": 0.651406,
+                  "usage_events_30d": 5835.986056,
+                  "usage_trend_90d_pct": -9.445268,
+                  "api_error_rate_30d": 0.038501,
+                  "feature_adoption_score": 59.117985,
+                  "days_since_last_admin_login": 7.439989,
+                  "support_tickets_30d": 3.281242,
+                  "urgent_tickets_90d": 0.848724,
+                  "mean_first_response_hours": 5.098108,
+                  "csat_trailing_90d": 4.057901,
+                  "late_payments_12m": 0.210734,
+                  "dunning_events_6m": 0.166272
+                },
+                "categorical_vocabularies": {
+                  "plan_tier": [
+                    "Enterprise",
+                    "Growth",
+                    "Starter"
+                  ],
+                  "contract_type": [
+                    "Annual",
+                    "Monthly"
+                  ],
+                  "industry_sector": [
+                    "DevTools",
+                    "ECommerce",
+                    "FinTech",
+                    "HealthTech",
+                    "Logistics",
+                    "ProfessionalServices",
+                    "None"
+                  ],
+                  "company_size_band": [
+                    "1-50",
+                    "1000+",
+                    "251-1000",
+                    "51-250",
+                    "None"
+                  ],
+                  "payment_method": [
+                    "CreditCard",
+                    "DirectDebit",
+                    "Invoice"
+                  ]
+                }
+              }
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "val",
+                "test"
+              ],
+              "contaminated_fit_rows": 1192
+            },
+            "consequence_explanation": "Empirical FitProvenanceRecord row-hash intersection proves that validation and/or test observations were passed into preprocessor.fit() (pre-split imputation/scaling).",
+            "recommended_correction": "Split the dataset into Train, Val and Test before calling .fit(), and fit preprocessing transformations exclusively on Train (and inside each CV fold).",
+            "verification_status": "VERIFIED_PROVENANCE"
+          },
+          {
+            "rule_id": "LAK-011",
+            "rule_title": "Covariate and Target Prevalence Shift Across Partitions",
+            "category": "DISTRIBUTION_SHIFT",
+            "severity": "MEDIUM",
+            "observed_evidence": {
+              "drifted_features_psi_or_tvd": {
+                "tenure_months": 1.4261
+              },
+              "train_positive_prevalence": 0.1058,
+              "test_positive_prevalence": 0.0873,
+              "prevalence_shift_abs": 0.0184,
+              "classification_note": "Classified as DISTRIBUTION_SHIFT, NOT data leakage. Shift across temporal waves or cohorts requires calibration monitoring and slice evaluation."
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "test"
+              ],
+              "columns": [
+                "tenure_months"
+              ]
+            },
+            "consequence_explanation": "Covariate or base-rate drift between training and test periods can degrade probability calibration and shift precision/recall trade-offs at a fixed threshold.",
+            "recommended_correction": "Inspect cohort-level calibration and evaluate whether recalibration or threshold adjustment on recent development windows is warranted.",
+            "verification_status": "VERIFIED_DIRECT_DATA"
+          }
+        ]
+      },
+      "raw_csv_mode": {
+        "overall_verdict": "FAIL_CONFIRMED_LEAKAGE",
+        "confirmed_leakage_rules": [
+          "LAK-006"
+        ],
+        "suspicious_signal_rules": [],
+        "unverifiable_rules": [
+          "LAK-005",
+          "LAK-007",
+          "LAK-008"
+        ]
+      },
+      "contaminated_vs_corrected_metrics": {
+        "fixture_measured": {
+          "logistic_regression": {
+            "test_pr_auc": 0.4381,
+            "test_roc_auc": 0.8507,
+            "test_brier": 0.0641
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.4143,
+            "test_roc_auc": 0.8155,
+            "test_brier": 0.0647
+          }
+        },
+        "clean_protocol_reference": {
+          "logistic_regression": {
+            "test_pr_auc": 0.4404,
+            "test_roc_auc": 0.8525,
+            "test_brier": 0.0639
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.3668,
+            "test_roc_auc": 0.8153,
+            "test_brier": 0.068
+          }
+        },
+        "interpretation": "Demonstrates two key principles: (1) Pre-split median/StandardScaler fitting is caught deterministically by LAK-007 via FitProvenanceRecord row-hash intersection, whereas a raw CSV without fit logs must report UNVERIFIABLE_MISSING_PROVENANCE for LAK-007; (2) Global linear scaling does not artificially inflate tree-ensemble ROC-AUC, proving why high/low model scores alone cannot substitute for provenance auditing."
+      }
+    },
+    {
+      "fixture_id": "FIX-05",
+      "name": "Minority-Class Oversampling Performed Before Partitioning",
+      "is_contaminated": true,
+      "injected_fault_description": "Oversampled minority churn snapshots (churned_within_90d == 1) across the entire dataset to 40% prevalence prior to splitting into Train, Val and Test partitions.",
+      "expected_confirmed_leakage_rules": [
+        "LAK-008",
+        "LAK-002"
+      ],
+      "requires_external_provenance": false,
+      "detected_in_full_provenance_mode": true,
+      "full_provenance_mode": {
+        "overall_verdict": "FAIL_CONFIRMED_LEAKAGE",
+        "confirmed_leakage_rules": [
+          "LAK-002",
+          "LAK-006",
+          "LAK-007",
+          "LAK-008"
+        ],
+        "suspicious_signal_rules": [],
+        "distribution_shift_rules": [],
+        "unverifiable_rules": [],
+        "findings": [
+          {
+            "rule_id": "LAK-002",
+            "rule_title": "Exact Predictor-Vector Duplicates Across Partitions",
+            "category": "CONFIRMED_LEAKAGE",
+            "severity": "CRITICAL",
+            "observed_evidence": {
+              "unique_duplicate_predictor_hashes": 322,
+              "train_val_duplicate_hashes": 218,
+              "train_test_duplicate_hashes": 227,
+              "val_test_duplicate_hashes": 131,
+              "contaminated_val_row_count": 329,
+              "contaminated_test_row_count": 329,
+              "sample_duplicate_hashes": [
+                "00976fec8f8db9cb3d585506",
+                "010b09edf292a14ac5f2d7d6",
+                "0131657e7c5e7d33d6d0a370",
+                "01b3b76d4efe87b99133eefc",
+                "01cb63b2bc29fc7408c2443f",
+                "02431f29d193734aee39bf51",
+                "0258f1a6502ab347f0435b8b",
+                "049a6d541ee1aeeae9c4a133"
+              ]
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "val",
+                "test"
+              ],
+              "contaminated_evaluation_rows": 658
+            },
+            "consequence_explanation": "Identical predictor vectors appear in both training and evaluation splits. High-capacity models can memorise exact training records, artificially distorting validation and test metrics.",
+            "recommended_correction": "Deduplicate snapshots prior to partitioning and ensure resampling or data augmentation never occurs before Train/Val/Test splitting.",
+            "verification_status": "VERIFIED_DIRECT_DATA"
+          },
+          {
+            "rule_id": "LAK-006",
+            "rule_title": "Temporal Ordering and 90-Day Outcome-Window Purge Verification",
+            "category": "CONFIRMED_LEAKAGE",
+            "severity": "CRITICAL",
+            "observed_evidence": {
+              "train_max_observation_date": "2025-04-01",
+              "train_max_outcome_window_end": "2025-06-30",
+              "val_min_observation_date": "2024-01-01",
+              "val_max_outcome_window_end": "2025-06-30",
+              "test_min_observation_date": "2024-01-01",
+              "train_rows_bleeding_into_val": 3923,
+              "val_rows_bleeding_into_test": 841,
+              "train_rows_bleeding_into_test": 3923
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "val",
+                "test"
+              ],
+              "bleeding_row_count": 4764
+            },
+            "consequence_explanation": "Training or validation observations have 90-day outcome windows extending past the start of the subsequent evaluation period. In production, those labels would not yet be known at the cutoff timestamp (temporal label bleed).",
+            "recommended_correction": "Purge all training rows where outcome_window_end > val_start_date and all validation rows where outcome_window_end > test_start_date.",
+            "verification_status": "VERIFIED_DIRECT_DATA"
+          },
+          {
+            "rule_id": "LAK-007",
+            "rule_title": "Preprocessing Fit Boundary Provenance Check",
+            "category": "CONFIRMED_LEAKAGE",
+            "severity": "CRITICAL",
+            "observed_evidence": {
+              "stage_name": "fix_05_train_fit",
+              "total_rows_used_in_preprocessor_fit": 3923,
+              "val_rows_present_in_preprocessor_fit": 218,
+              "test_rows_present_in_preprocessor_fit": 227,
+              "cv_folds_contaminating_val_or_test": 0,
+              "sample_leaked_test_row_hashes": [
+                "003ea2a9ffd25827b28730e7",
+                "00d2874ed424d6a62af7c85a",
+                "00e0c9bcbb76354754217b3d",
+                "0108a5ddf4db59d11cc1ffe0",
+                "01f294439736da97844274c7",
+                "02b325080ccdf54785a30022",
+                "0368baaaaf238d21e232b67f",
+                "038cf57607239dd9d225bb8e"
+              ],
+              "learned_summary_stats": {
+                "numerical_medians": {
+                  "mrr_gbp": 2136.0,
+                  "seats_purchased": 57.0,
+                  "tenure_months": 17.0,
+                  "discount_pct": 10.0,
+                  "active_seats_ratio_30d": 0.6206,
+                  "usage_events_30d": 2198.0,
+                  "usage_trend_90d_pct": -12.515,
+                  "api_error_rate_30d": 0.0321,
+                  "feature_adoption_score": 58.03,
+                  "days_since_last_admin_login": 4.6,
+                  "support_tickets_30d": 3.0,
+                  "urgent_tickets_90d": 1.0,
+                  "mean_first_response_hours": 4.54,
+                  "csat_trailing_90d": 4.0,
+                  "late_payments_12m": 0.0,
+                  "dunning_events_6m": 0.0
+                },
+                "numerical_means": {
+                  "mrr_gbp": 7378.850446,
+                  "seats_purchased": 120.945705,
+                  "tenure_months": 18.418302,
+                  "discount_pct": 10.968646,
+                  "active_seats_ratio_30d": 0.608682,
+                  "usage_events_30d": 6130.249299,
+                  "usage_trend_90d_pct": -12.972089,
+                  "api_error_rate_30d": 0.039661,
+                  "feature_adoption_score": 58.051524,
+                  "days_since_last_admin_login": 8.767907,
+                  "support_tickets_30d": 3.544481,
+                  "urgent_tickets_90d": 1.019118,
+                  "mean_first_response_hours": 5.450495,
+                  "csat_trailing_90d": 3.95543,
+                  "late_payments_12m": 0.247005,
+                  "dunning_events_6m": 0.227632
+                },
+                "categorical_vocabularies": {
+                  "plan_tier": [
+                    "Enterprise",
+                    "Growth",
+                    "Starter"
+                  ],
+                  "contract_type": [
+                    "Annual",
+                    "Monthly"
+                  ],
+                  "industry_sector": [
+                    "DevTools",
+                    "ECommerce",
+                    "FinTech",
+                    "HealthTech",
+                    "Logistics",
+                    "ProfessionalServices",
+                    "None"
+                  ],
+                  "company_size_band": [
+                    "1-50",
+                    "1000+",
+                    "251-1000",
+                    "51-250",
+                    "None"
+                  ],
+                  "payment_method": [
+                    "CreditCard",
+                    "DirectDebit",
+                    "Invoice"
+                  ]
+                }
+              }
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "val",
+                "test"
+              ],
+              "contaminated_fit_rows": 445
+            },
+            "consequence_explanation": "Empirical FitProvenanceRecord row-hash intersection proves that validation and/or test observations were passed into preprocessor.fit() (pre-split imputation/scaling).",
+            "recommended_correction": "Split the dataset into Train, Val and Test before calling .fit(), and fit preprocessing transformations exclusively on Train (and inside each CV fold).",
+            "verification_status": "VERIFIED_PROVENANCE"
+          },
+          {
+            "rule_id": "LAK-008",
+            "rule_title": "Resampling / Class Balancing Boundary Check",
+            "category": "CONFIRMED_LEAKAGE",
+            "severity": "CRITICAL",
+            "observed_evidence": {
+              "pre_split_resampled_provenance_flag": true,
+              "cross_partition_minority_duplicate_hashes": 318,
+              "resampling_provenance": {
+                "applied": true,
+                "method": "pre_split_global_random_oversampler",
+                "applied_strictly_inside_train_boundary": false,
+                "pre_Split_resampled": true,
+                "original_train_row_count": 3801,
+                "resampled_train_row_count": 5605,
+                "pre_resample_positive_rate": 0.1063,
+                "post_resample_positive_rate": 0.3939,
+                "source_row_hashes_used": [],
+                "val_or_test_rows_touched": 1682
+              }
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "val",
+                "test"
+              ],
+              "leaked_minority_hashes": 318
+            },
+            "consequence_explanation": "Minority-class oversampling or duplication was performed before partitioning the dataset. Exact copies of oversampled churn cases appear simultaneously in training and evaluation, severely inflating recall and PR-AUC.",
+            "recommended_correction": "Partition Train/Val/Test first, and apply any resampling strictly inside the training portion of each cross-validation fold.",
+            "verification_status": "VERIFIED_PROVENANCE"
+          }
+        ]
+      },
+      "raw_csv_mode": {
+        "overall_verdict": "FAIL_CONFIRMED_LEAKAGE",
+        "confirmed_leakage_rules": [
+          "LAK-002",
+          "LAK-006",
+          "LAK-008"
+        ],
+        "suspicious_signal_rules": [],
+        "unverifiable_rules": [
+          "LAK-005",
+          "LAK-007"
+        ]
+      },
+      "contaminated_vs_corrected_metrics": {
+        "fixture_measured": {
+          "logistic_regression": {
+            "test_pr_auc": 0.683,
+            "test_roc_auc": 0.7811,
+            "test_brier": 0.1852
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.952,
+            "test_roc_auc": 0.973,
+            "test_brier": 0.071
+          }
+        },
+        "clean_protocol_reference": {
+          "logistic_regression": {
+            "test_pr_auc": 0.4404,
+            "test_roc_auc": 0.8525,
+            "test_brier": 0.0639
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.3668,
+            "test_roc_auc": 0.8153,
+            "test_brier": 0.068
+          }
+        },
+        "interpretation": "Balancing the dataset before splitting duplicates minority churn records across Train and Test AND alters the test base rate from ~15% to ~39%, drastically inflating test PR-AUC."
+      }
+    },
+    {
+      "fixture_id": "FIX-06",
+      "name": "Clean Negative Control (Properly Partitioned & Train-Only Fitted)",
+      "is_contaminated": false,
+      "injected_fault_description": "None (Clean negative control with strong legitimate historical predictors).",
+      "expected_confirmed_leakage_rules": [],
+      "requires_external_provenance": false,
+      "detected_in_full_provenance_mode": true,
+      "full_provenance_mode": {
+        "overall_verdict": "PASS_VERIFIED_CLEAN",
+        "confirmed_leakage_rules": [],
+        "suspicious_signal_rules": [],
+        "distribution_shift_rules": [
+          "LAK-011"
+        ],
+        "unverifiable_rules": [],
+        "findings": [
+          {
+            "rule_id": "LAK-011",
+            "rule_title": "Covariate and Target Prevalence Shift Across Partitions",
+            "category": "DISTRIBUTION_SHIFT",
+            "severity": "MEDIUM",
+            "observed_evidence": {
+              "drifted_features_psi_or_tvd": {
+                "tenure_months": 0.9382,
+                "usage_trend_90d_pct": 0.2147
+              },
+              "train_positive_prevalence": 0.107,
+              "test_positive_prevalence": 0.0873,
+              "prevalence_shift_abs": 0.0197,
+              "classification_note": "Classified as DISTRIBUTION_SHIFT, NOT data leakage. Shift across temporal waves or cohorts requires calibration monitoring and slice evaluation."
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "test"
+              ],
+              "columns": [
+                "tenure_months",
+                "usage_trend_90d_pct"
+              ]
+            },
+            "consequence_explanation": "Covariate or base-rate drift between training and test periods can degrade probability calibration and shift precision/recall trade-offs at a fixed threshold.",
+            "recommended_correction": "Inspect cohort-level calibration and evaluate whether recalibration or threshold adjustment on recent development windows is warranted.",
+            "verification_status": "VERIFIED_DIRECT_DATA"
+          }
+        ]
+      },
+      "raw_csv_mode": {
+        "overall_verdict": "PASS_WITH_PROVENANCE_GAPS",
+        "confirmed_leakage_rules": [],
+        "suspicious_signal_rules": [],
+        "unverifiable_rules": [
+          "LAK-005",
+          "LAK-007",
+          "LAK-008"
+        ]
+      },
+      "contaminated_vs_corrected_metrics": {
+        "fixture_measured": {
+          "logistic_regression": {
+            "test_pr_auc": 0.4404,
+            "test_roc_auc": 0.8525,
+            "test_brier": 0.0639
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.3668,
+            "test_roc_auc": 0.8153,
+            "test_brier": 0.068
+          }
+        },
+        "clean_protocol_reference": {
+          "logistic_regression": {
+            "test_pr_auc": 0.4404,
+            "test_roc_auc": 0.8525,
+            "test_brier": 0.0639
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.3668,
+            "test_roc_auc": 0.8153,
+            "test_brier": 0.068
+          }
+        },
+        "interpretation": "Clean negative control passes all 11 rules with zero false leakage flags in Full-Provenance mode, and explicitly reports provenance gaps without false positives in Raw-CSV mode."
+      }
+    },
+    {
+      "fixture_id": "FIX-07",
+      "name": "Legitimate Covariate & Prevalence Shift Control (Not Leakage)",
+      "is_contaminated": false,
+      "injected_fault_description": "None (Clean temporal split where Test period experiences a simulated macro-economic shift toward smaller Starter-tier monthly accounts; must be classified as DISTRIBUTION_SHIFT under LAK-011 and NOT flagged as leakage).",
+      "expected_confirmed_leakage_rules": [],
+      "requires_external_provenance": false,
+      "detected_in_full_provenance_mode": true,
+      "full_provenance_mode": {
+        "overall_verdict": "PASS_VERIFIED_CLEAN",
+        "confirmed_leakage_rules": [],
+        "suspicious_signal_rules": [],
+        "distribution_shift_rules": [
+          "LAK-011"
+        ],
+        "unverifiable_rules": [],
+        "findings": [
+          {
+            "rule_id": "LAK-011",
+            "rule_title": "Covariate and Target Prevalence Shift Across Partitions",
+            "category": "DISTRIBUTION_SHIFT",
+            "severity": "MEDIUM",
+            "observed_evidence": {
+              "drifted_features_psi_or_tvd": {
+                "mrr_gbp": 0.5623,
+                "seats_purchased": 0.8751,
+                "tenure_months": 0.9382,
+                "usage_trend_90d_pct": 0.2147,
+                "plan_tier (TVD)": 0.5242
+              },
+              "train_positive_prevalence": 0.107,
+              "test_positive_prevalence": 0.0873,
+              "prevalence_shift_abs": 0.0197,
+              "classification_note": "Classified as DISTRIBUTION_SHIFT, NOT data leakage. Shift across temporal waves or cohorts requires calibration monitoring and slice evaluation."
+            },
+            "affected_scope": {
+              "partitions": [
+                "train",
+                "test"
+              ],
+              "columns": [
+                "mrr_gbp",
+                "seats_purchased",
+                "tenure_months",
+                "usage_trend_90d_pct",
+                "plan_tier (TVD)"
+              ]
+            },
+            "consequence_explanation": "Covariate or base-rate drift between training and test periods can degrade probability calibration and shift precision/recall trade-offs at a fixed threshold.",
+            "recommended_correction": "Inspect cohort-level calibration and evaluate whether recalibration or threshold adjustment on recent development windows is warranted.",
+            "verification_status": "VERIFIED_DIRECT_DATA"
+          }
+        ]
+      },
+      "raw_csv_mode": {
+        "overall_verdict": "PASS_WITH_PROVENANCE_GAPS",
+        "confirmed_leakage_rules": [],
+        "suspicious_signal_rules": [],
+        "unverifiable_rules": [
+          "LAK-005",
+          "LAK-007",
+          "LAK-008"
+        ]
+      },
+      "contaminated_vs_corrected_metrics": {
+        "fixture_measured": {
+          "logistic_regression": {
+            "test_pr_auc": 0.4828,
+            "test_roc_auc": 0.8659,
+            "test_brier": 0.0617
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.373,
+            "test_roc_auc": 0.8228,
+            "test_brier": 0.0674
+          }
+        },
+        "clean_protocol_reference": {
+          "logistic_regression": {
+            "test_pr_auc": 0.4404,
+            "test_roc_auc": 0.8525,
+            "test_brier": 0.0639
+          },
+          "hist_gradient_boosting": {
+            "test_pr_auc": 0.3668,
+            "test_roc_auc": 0.8153,
+            "test_brier": 0.068
+          }
+        },
+        "interpretation": "Audit engine accurately detects PSI/TVD drift under LAK-011 (DISTRIBUTION_SHIFT) while recording 0 CONFIRMED_LEAKAGE findings."
+      }
+    }
+  ]
+}
